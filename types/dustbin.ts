@@ -1,21 +1,21 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+export interface Dustbin {
+  id: string;
+  location: string;
+  address: string;
+  fillLevel: number;
+  latitude: number;
+  longitude: number;
+  status: 'normal' | 'warning' | 'critical';
+  lastUpdated: string;
+  zone: string;
+}
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/sensor(.*)'
-]);
-
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
-  }
-});
-
-export const config = {
-  matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    '/(api|trpc)(.*)',
-  ],
-};
+export interface Alert {
+  id: string;
+  dustbinId: string;
+  location: string;
+  message: string;
+  timestamp: string;
+  status: 'sent' | 'pending';
+  sentTo: string[];
+}

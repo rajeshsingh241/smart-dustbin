@@ -12,6 +12,7 @@ export default function DashboardContent() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'alerts'>('dashboard');
   const [loading, setLoading] = useState(true);
+  
 
   useEffect(() => {
     const sampleDustbins: Dustbin[] = [
