@@ -68,3 +68,6 @@ export const sendMunicipalAlert = async (alertData: EmailAlert) => {
     return { success: false, error };
   }
 };
+
+
+
