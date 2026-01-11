@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const user = await currentUser();
   
   // REMOVED Firebase calls - they're causing issues
-  // We'll handle this on the client side if needed
+  // We will handle this on the client side if needed
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">

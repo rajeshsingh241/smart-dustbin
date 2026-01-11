@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, AlertTriangle, MapPin, Bell, Send, X, Check, Clock, TrendingUp, Plus } from 'lucide-react';
 // Comment out Firebase imports - TEMPORARILY DISABLED
-// import { listenToDustbinUpdates, createAlert, getAlerts } from '@/lib/firebase';
+import { listenToDustbinUpdates, createAlert, getAlerts } from '@/lib/firebase';
 import type { Dustbin, Alert } from '@/types/dustbin';
 import AddDustbinModal from './AddDustbinModal';
 
@@ -89,7 +89,8 @@ export default function DashboardContent() {
         location: 'MP Nagar Zone 1',
         message: 'Critical: Dustbin 85% full',
         timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-        status: 'sent'
+        status: 'sent',
+           sentTo: ['municipal@bhopal.gov.in'] 
       },
       {
         id: 'alert-002',
@@ -97,7 +98,8 @@ export default function DashboardContent() {
         location: 'Railway Station',
         message: 'Critical: Dustbin 92% full',
         timestamp: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-        status: 'sent'
+        status: 'sent',
+           sentTo: ['municipal@bhopal.gov.in'] 
       }
     ];
 
@@ -106,7 +108,7 @@ export default function DashboardContent() {
     setLoading(false);
 
     // COMMENTED OUT - Firebase real-time listener
-    /*
+    
     const unsubscribe = listenToDustbinUpdates((data) => {
       if (data) {
         const bins = Object.entries(data).map(([id, binData]: [string, any]) => ({
@@ -127,7 +129,7 @@ export default function DashboardContent() {
     loadAlerts();
 
     return () => unsubscribe();
-    */
+    
 
     // No cleanup needed for mock data
     return () => {};
@@ -164,7 +166,8 @@ export default function DashboardContent() {
           location: 'MP Nagar Zone 1',
           message: 'Mock alert for testing',
           timestamp: new Date().toISOString(),
-          status: 'sent'
+          status: 'sent',
+             sentTo: ['municipal@bhopal.gov.in'] 
         }
       ];
       setAlerts(mockAlerts);
@@ -188,7 +191,8 @@ export default function DashboardContent() {
         location: bin.location,
         message: `Alert sent for ${bin.id} at ${bin.fillLevel}% capacity`,
         timestamp: new Date().toISOString(),
-        status: 'sent'
+        status: 'sent',
+           sentTo: ['municipal@bhopal.gov.in'] 
       };
       
       // Add to alerts list
@@ -201,7 +205,7 @@ export default function DashboardContent() {
       setSelectedBin(null);
 
       // COMMENTED OUT - Firebase alert creation
-      /*
+      
       const response = await fetch('/api/alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,7 +230,7 @@ export default function DashboardContent() {
         setShowAlertModal(false);
         setSelectedBin(null);
       }
-      */
+      
     } catch (error) {
       console.error('Error sending alert:', error);
       alert('Error sending alert. Please try again.');
