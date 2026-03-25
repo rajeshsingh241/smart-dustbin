@@ -1,7 +1,6 @@
-import { Resend } from 'resend';
+import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
 
 export interface EmailAlert {
   dustbinId: string;
@@ -13,7 +12,7 @@ export interface EmailAlert {
 
 export const sendMunicipalAlert = async (alertData: EmailAlert) => {
   const { dustbinId, location, fillLevel, latitude, longitude } = alertData;
-  
+
   const emailHtml = `
     <!DOCTYPE html>
     <html>
@@ -44,7 +43,7 @@ export const sendMunicipalAlert = async (alertData: EmailAlert) => {
               <p><strong>Location:</strong> ${location}</p>
               <p><strong>Fill Level:</strong> ${fillLevel}%</p>
               <p><strong>Coordinates:</strong> ${latitude}, ${longitude}</p>
-              <p><strong>Time:</strong> ${new Date().toLocaleString('en-IN')}</p>
+              <p><strong>Time:</strong> ${new Date().toLocaleString("en-IN")}</p>
             </div>
             <a href="https://www.google.com/maps?q=${latitude},${longitude}" class="button">
               📍 View Location
@@ -57,18 +56,19 @@ export const sendMunicipalAlert = async (alertData: EmailAlert) => {
 
   try {
     const data = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Smart Dustbin <alerts@smartdustbin.com>',
-      to: [process.env.MUNICIPAL_EMAIL || 'municipal@city.gov'],
+      from: "onboarding@resend.dev",
+      to: [process.env.MUNICIPAL_EMAIL || "chotadon13123@gmail.com"],
       subject: `🚨 URGENT: Dustbin ${dustbinId} Critical Alert - ${location}`,
       html: emailHtml,
     });
 
+    console.log("✅ Email sent successfully via Resend:", JSON.stringify(data));
     return { success: true, data };
-  } catch (error) {
-    console.error('Email error:', error);
-    return { success: false, error };
+  } catch (error: unknown) {
+    const errMsg =
+      error instanceof Error ? error.message : JSON.stringify(error);
+    console.error("❌ Resend email error:", errMsg);
+    console.error("❌ Full error object:", error);
+    return { success: false, error: errMsg };
   }
 };
-
-
-

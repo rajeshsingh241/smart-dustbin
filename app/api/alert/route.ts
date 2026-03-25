@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sendMunicipalAlert } from '@/lib/email';
+import { NextRequest, NextResponse } from "next/server";
+import { sendMunicipalAlert } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
     const { dustbinId, location, fillLevel, latitude, longitude } = body;
 
     if (!dustbinId || !location || !fillLevel) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
     const result = await sendMunicipalAlert({
@@ -15,23 +18,28 @@ export async function POST(request: NextRequest) {
       location,
       fillLevel,
       latitude,
-      longitude
+      longitude,
     });
 
     if (result.success) {
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Alert sent successfully'
+      return NextResponse.json({
+        success: true,
+        message: "Alert sent successfully",
       });
     } else {
-      return NextResponse.json({ 
-        error: 'Failed to send alert',
-        details: result.error
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Failed to send alert",
+          details: result.error,
+        },
+        { status: 500 },
+      );
     }
-
   } catch (error) {
-    console.error('Alert API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Alert API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
