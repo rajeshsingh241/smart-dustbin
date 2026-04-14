@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   Camera,
   Upload,
@@ -17,9 +17,9 @@ import {
   StopCircle,
   RefreshCw,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import {
-  classifyWaste,
   WASTE_TYPE_ICONS,
   CATEGORY_BADGE,
   type WasteClassificationResult,
@@ -33,7 +33,7 @@ interface HistoryEntry extends WasteClassificationResult {
   timestamp: string;
 }
 
-type ModelStatus = "idle" | "loading" | "ready" | "error";
+type ApiStatus = "idle" | "ready" | "classifying" | "error";
 
 // ─── Partition Bins Visualisation ──────────────────────────────────────────────
 
@@ -71,7 +71,6 @@ function PartitionBins({
                   : ""
             }`}
           >
-            {/* Lid */}
             <div
               className={`w-full h-4 rounded-t-lg transition-colors duration-500 ${
                 highlightRecyclable
@@ -79,9 +78,8 @@ function PartitionBins({
                   : "bg-green-300 dark:bg-green-700"
               }`}
             />
-            {/* Body */}
             <div
-              className={`relative w-full rounded-b-lg border-2 transition-colors duration-500 overflow-hidden`}
+              className="relative w-full rounded-b-lg border-2 transition-colors duration-500 overflow-hidden"
               style={{
                 height: 100,
                 borderColor: highlightRecyclable ? "#22c55e" : undefined,
@@ -94,49 +92,30 @@ function PartitionBins({
                     : "border-green-200 dark:border-green-800 bg-gray-50 dark:bg-gray-800"
                 }`}
               />
-              {/* fill level */}
               <div
                 className="absolute bottom-0 left-0 right-0 bg-green-400/30 dark:bg-green-500/20 transition-all duration-700"
                 style={{ height: highlightRecyclable ? "38%" : "20%" }}
               />
-              {/* Icon */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <Recycle
                   className={`w-8 h-8 transition-colors duration-500 ${
                     highlightRecyclable
-                      ? "text-green-600 dark:text-green-400"
+                      ? "text-green-500"
                       : "text-green-300 dark:text-green-700"
                   }`}
                 />
-                <div className="flex gap-0.5">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-1 rounded-full transition-all duration-500 ${
-                        highlightRecyclable
-                          ? "bg-green-500 h-5"
-                          : "bg-green-200 dark:bg-green-800 h-2"
-                      }`}
-                    />
-                  ))}
-                </div>
               </div>
             </div>
           </div>
           <span
-            className={`text-xs font-bold transition-colors duration-300 ${
+            className={`text-xs font-semibold transition-colors duration-300 ${
               highlightRecyclable
                 ? "text-green-600 dark:text-green-400"
-                : "text-gray-400 dark:text-gray-600"
+                : "text-gray-400 dark:text-gray-500"
             }`}
           >
-            ♻️ RECYCLABLE
+            Recyclable
           </span>
-        </div>
-
-        {/* ── Divider ── */}
-        <div className="text-gray-200 dark:text-gray-700 text-3xl self-center select-none">
-          │
         </div>
 
         {/* ── Non-Recyclable Bin ── */}
@@ -156,17 +135,15 @@ function PartitionBins({
                   : ""
             }`}
           >
-            {/* Lid */}
             <div
               className={`w-full h-4 rounded-t-lg transition-colors duration-500 ${
                 highlightNonRecyclable
                   ? "bg-red-500"
-                  : "bg-red-300 dark:bg-red-800"
+                  : "bg-red-300 dark:bg-red-700"
               }`}
             />
-            {/* Body */}
             <div
-              className={`relative w-full rounded-b-lg border-2 transition-colors duration-500 overflow-hidden`}
+              className="relative w-full rounded-b-lg border-2 transition-colors duration-500 overflow-hidden"
               style={{
                 height: 100,
                 borderColor: highlightNonRecyclable ? "#ef4444" : undefined,
@@ -176,55 +153,39 @@ function PartitionBins({
                 className={`border-2 w-full h-full ${
                   highlightNonRecyclable
                     ? "border-red-500 bg-red-50 dark:bg-red-900/30"
-                    : "border-red-200 dark:border-red-900 bg-gray-50 dark:bg-gray-800"
+                    : "border-red-200 dark:border-red-800 bg-gray-50 dark:bg-gray-800"
                 }`}
               />
-              {/* fill level */}
               <div
                 className="absolute bottom-0 left-0 right-0 bg-red-400/30 dark:bg-red-500/20 transition-all duration-700"
-                style={{ height: highlightNonRecyclable ? "58%" : "42%" }}
+                style={{ height: highlightNonRecyclable ? "55%" : "35%" }}
               />
-              {/* Icon */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <Trash2
                   className={`w-8 h-8 transition-colors duration-500 ${
                     highlightNonRecyclable
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-red-300 dark:text-red-800"
+                      ? "text-red-500"
+                      : "text-red-300 dark:text-red-700"
                   }`}
                 />
-                <div className="flex gap-0.5">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-1 rounded-full transition-all duration-500 ${
-                        highlightNonRecyclable
-                          ? "bg-red-500 h-5"
-                          : "bg-red-200 dark:bg-red-900 h-2"
-                      }`}
-                    />
-                  ))}
-                </div>
               </div>
             </div>
           </div>
           <span
-            className={`text-xs font-bold transition-colors duration-300 ${
+            className={`text-xs font-semibold transition-colors duration-300 ${
               highlightNonRecyclable
                 ? "text-red-600 dark:text-red-400"
-                : "text-gray-400 dark:text-gray-600"
+                : "text-gray-400 dark:text-gray-500"
             }`}
           >
-            🗑️ GENERAL WASTE
+            General Waste
           </span>
         </div>
       </div>
 
       {!result && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 text-center leading-relaxed">
-          Upload or capture an image to see
-          <br />
-          which bin partition to use
+        <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+          Classify a waste item to see which bin to use
         </p>
       )}
     </div>
@@ -245,192 +206,162 @@ function ResultCard({
   const confidencePct = Math.round(result.confidence * 100);
 
   const confBarColor =
-    confidencePct >= 70
+    result.category === "recyclable"
       ? "bg-green-500"
-      : confidencePct >= 40
-        ? "bg-yellow-500"
-        : "bg-red-400";
+      : result.category === "non-recyclable"
+        ? "bg-red-500"
+        : "bg-gray-400";
 
   return (
     <div
-      className={`rounded-xl border-2 p-5 ${badge.bg} ${badge.border} relative`}
+      className={`rounded-xl border-2 p-4 space-y-3 ${badge.bg} ${badge.border}`}
     >
-      <button
-        onClick={onClear}
-        className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-        title="Clear result"
-      >
-        <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-      </button>
-
-      {/* Category badge */}
-      <div className="inline-flex items-center gap-2 mb-3">
-        {result.category === "recyclable" ? (
-          <CheckCircle className={`w-5 h-5 ${badge.text_color}`} />
-        ) : result.category === "non-recyclable" ? (
-          <AlertCircle className={`w-5 h-5 ${badge.text_color}`} />
-        ) : (
-          <HelpCircle className={`w-5 h-5 ${badge.text_color}`} />
-        )}
-        <span
-          className={`text-sm font-extrabold tracking-wide ${badge.text_color}`}
-        >
-          {badge.text}
-        </span>
-      </div>
-
-      {/* Item info */}
-      <div className="flex items-center gap-3 mb-4">
-        <span className="text-4xl">{icon}</span>
-        <div>
-          <p
-            className={`font-bold text-base leading-tight ${badge.text_color}`}
-          >
-            {result.label}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize mt-0.5">
-            Category: {result.wasteType.replace("-", " ")}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {result.description}
-          </p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{icon}</span>
+          <div>
+            <p className={`font-bold text-base ${badge.text_color}`}>
+              {result.label}
+            </p>
+            <span
+              className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full border ${badge.bg} ${badge.border} ${badge.text_color}`}
+            >
+              {badge.text}
+            </span>
+          </div>
         </div>
+        <button
+          onClick={onClear}
+          className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+        >
+          <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        </button>
       </div>
 
-      {/* Confidence */}
-      <div className="mb-4">
+      {/* Confidence bar */}
+      <div>
         <div className="flex justify-between text-xs mb-1">
-          <span className="text-gray-600 dark:text-gray-400 font-semibold">
-            Model Confidence
+          <span className="text-gray-500 dark:text-gray-400 font-medium">
+            AI Confidence
           </span>
-          <span className="font-bold text-gray-800 dark:text-gray-200">
+          <span className={`font-bold ${badge.text_color}`}>
             {confidencePct}%
           </span>
         </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
-            className={`h-2.5 rounded-full transition-all duration-700 ${confBarColor}`}
+            className={`h-full rounded-full transition-all duration-700 ${confBarColor}`}
             style={{ width: `${confidencePct}%` }}
           />
         </div>
-        {confidencePct < 40 && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-            ⚠ Low confidence — try a clearer or closer image.
-          </p>
-        )}
       </div>
 
+      {/* Description */}
+      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        {result.description}
+      </p>
+
       {/* Disposal tip */}
-      <div className="flex gap-2 bg-white/60 dark:bg-black/20 rounded-lg p-3">
+      <div className="flex items-start gap-2 p-3 bg-white/60 dark:bg-black/20 rounded-lg border border-white/40 dark:border-white/10">
         <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-          <strong className="text-gray-800 dark:text-gray-200">
-            Disposal tip:{" "}
-          </strong>
+          <span className="font-semibold">Tip: </span>
           {result.disposalTip}
         </p>
       </div>
 
-      {/* Raw predictions (collapsible) */}
-      {result.rawPredictions.length > 0 && (
-        <details className="mt-3 group">
-          <summary className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer select-none hover:text-gray-600 dark:hover:text-gray-300 list-none flex items-center gap-1">
-            <ChevronRight className="w-3 h-3 transition-transform group-open:rotate-90" />
-            Raw model predictions
-          </summary>
-          <div className="mt-2 space-y-1 pl-1">
-            {result.rawPredictions.slice(0, 5).map((p, i) => (
-              <div
-                key={i}
-                className="flex justify-between items-center text-xs"
-              >
-                <span className="text-gray-600 dark:text-gray-400 truncate max-w-[72%]">
-                  {p.className}
-                </span>
-                <span className="text-gray-500 dark:text-gray-400 font-mono">
-                  {(p.probability * 100).toFixed(1)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
+      {/* Category icon */}
+      <div className="flex items-center gap-2">
+        {result.category === "recyclable" ? (
+          <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+        ) : result.category === "non-recyclable" ? (
+          <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+        ) : (
+          <HelpCircle className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        )}
+        <span className={`text-xs font-semibold ${badge.text_color}`}>
+          {result.category === "recyclable"
+            ? "Place in the Recyclable partition"
+            : result.category === "non-recyclable"
+              ? "Place in the General Waste partition"
+              : "Unable to determine — use General Waste as default"}
+        </span>
+      </div>
     </div>
   );
 }
 
-// ─── Session Stats ─────────────────────────────────────────────────────────────
+// ─── Stats Panel ───────────────────────────────────────────────────────────────
 
 function StatsPanel({ history }: { history: HistoryEntry[] }) {
-  if (history.length === 0) return null;
-
   const recyclable = history.filter((h) => h.category === "recyclable").length;
   const nonRecyclable = history.filter(
-    (h) => h.category === "non-recyclable",
+    (h) => h.category === "non-recyclable"
   ).length;
   const unknown = history.filter((h) => h.category === "unknown").length;
   const total = history.length;
-
-  const recyclablePct = Math.round((recyclable / total) * 100);
-  const nonRecyclablePct = Math.round((nonRecyclable / total) * 100);
+  const recyclablePct = total > 0 ? Math.round((recyclable / total) * 100) : 0;
+  const nonRecyclablePct =
+    total > 0 ? Math.round((nonRecyclable / total) * 100) : 0;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart2 className="w-5 h-5 text-indigo-500" />
-        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
-          Session Statistics
-        </h3>
-        <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">
-          {total} item{total !== 1 ? "s" : ""} classified
-        </span>
-      </div>
-
-      {/* Stacked bar */}
-      <div className="w-full h-3 rounded-full overflow-hidden flex mb-3 bg-gray-200 dark:bg-gray-700">
-        <div
-          className="bg-green-500 transition-all duration-500"
-          style={{ width: `${recyclablePct}%` }}
-        />
-        <div
-          className="bg-red-500 transition-all duration-500"
-          style={{ width: `${nonRecyclablePct}%` }}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-4 text-xs">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
-          <span className="text-gray-600 dark:text-gray-300">
-            Recyclable{" "}
-            <span className="font-bold text-green-600 dark:text-green-400">
-              {recyclable}
-            </span>{" "}
-            ({recyclablePct}%)
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" />
-          <span className="text-gray-600 dark:text-gray-300">
-            Non-Recyclable{" "}
-            <span className="font-bold text-red-600 dark:text-red-400">
-              {nonRecyclable}
-            </span>{" "}
-            ({nonRecyclablePct}%)
-          </span>
-        </div>
-        {unknown > 0 && (
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0" />
-            <span className="text-gray-600 dark:text-gray-300">
-              Unknown{" "}
-              <span className="font-bold text-gray-600 dark:text-gray-400">
-                {unknown}
-              </span>
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <BarChart2 className="w-4 h-4 text-indigo-500" />
+        Session Stats
+      </h3>
+      {total === 0 ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">
+          No classifications yet this session
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <span>Total classified</span>
+            <span className="font-bold text-gray-800 dark:text-white">
+              {total}
             </span>
           </div>
-        )}
-      </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-green-600 dark:text-green-400 font-medium">
+                ♻ Recyclable
+              </span>
+              <span className="text-green-600 dark:text-green-400 font-bold">
+                {recyclable} ({recyclablePct}%)
+              </span>
+            </div>
+            <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all duration-500"
+                style={{ width: `${recyclablePct}%` }}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-red-600 dark:text-red-400 font-medium">
+                🗑 General Waste
+              </span>
+              <span className="text-red-600 dark:text-red-400 font-bold">
+                {nonRecyclable} ({nonRecyclablePct}%)
+              </span>
+            </div>
+            <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-500 rounded-full transition-all duration-500"
+                style={{ width: `${nonRecyclablePct}%` }}
+              />
+            </div>
+          </div>
+          {unknown > 0 && (
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              {unknown} item{unknown > 1 ? "s" : ""} could not be identified
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -438,9 +369,7 @@ function StatsPanel({ history }: { history: HistoryEntry[] }) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function WasteClassifier() {
-  const [modelStatus, setModelStatus] = useState<ModelStatus>("idle");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [model, setModel] = useState<any>(null);
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("ready");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [classifying, setClassifying] = useState(false);
   const [result, setResult] = useState<WasteClassificationResult | null>(null);
@@ -453,65 +382,87 @@ export default function WasteClassifier() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // ── Load TF + MobileNet (client-only, dynamic import) ──────────────────────
-  const loadModel = useCallback(async () => {
-    if (model) return model;
-    setModelStatus("loading");
+  // ── Convert <img> element to base64 and call Gemini API ───────────────────
+  const runClassification = useCallback(async (imgEl: HTMLImageElement) => {
+    setClassifying(true);
+    setApiStatus("classifying");
     setError(null);
+
     try {
-      await import("@tensorflow/tfjs");
-      const mobilenetMod = await import("@tensorflow-models/mobilenet");
-      const loaded = await mobilenetMod.load({ version: 2, alpha: 1.0 });
-      setModel(loaded);
-      setModelStatus("ready");
-      return loaded;
-    } catch (err) {
-      console.error("Model load error:", err);
-      setModelStatus("error");
-      setError("Failed to load the AI model. Check your connection and retry.");
-      return null;
-    }
-  }, [model]);
+      // Resize to max 1024px on the longest side to keep payload small
+      const MAX_PX = 1024;
+      const srcW = imgEl.naturalWidth || imgEl.width || 640;
+      const srcH = imgEl.naturalHeight || imgEl.height || 480;
+      const scale = Math.min(1, MAX_PX / Math.max(srcW, srcH));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(srcW * scale);
+      canvas.height = Math.round(srcH * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context unavailable");
+      ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
 
-  useEffect(() => {
-    loadModel();
-    return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      // Get base64 string (strip the data:image/xxx;base64, prefix)
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      const base64 = dataUrl.split(",")[1];
 
-  // ── Run classification on the loaded <img> element ─────────────────────────
-  const runClassification = useCallback(
-    async (imgEl: HTMLImageElement) => {
-      setClassifying(true);
-      setError(null);
-      try {
-        const currentModel = model ?? (await loadModel());
-        if (!currentModel) return;
+      if (!base64) throw new Error("Failed to convert image to base64");
 
-        const predictions: Array<{ className: string; probability: number }> =
-          await currentModel.classify(imgEl);
+      const response = await fetch("/api/classify-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mimeType: "image/jpeg" }),
+      });
 
-        const classification = classifyWaste(predictions);
-        setResult(classification);
+      const data = await response.json();
 
-        setHistory((prev) => [
-          {
-            ...classification,
-            id: `hist-${Date.now()}`,
-            imageUrl: imgEl.src,
-            timestamp: new Date().toISOString(),
-          },
-          ...prev.slice(0, 19),
-        ]);
-      } catch (err) {
-        console.error("Classification error:", err);
-        setError("Classification failed. Try a clearer, well-lit image.");
-      } finally {
-        setClassifying(false);
+      if (!response.ok) {
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
-    },
-    [model, loadModel],
-  );
+
+      if (!data.success || !data.classification) {
+        throw new Error("Invalid response from classification API");
+      }
+
+      const classification: WasteClassificationResult = {
+        ...data.classification,
+        rawPredictions: [
+          {
+            className: data.classification.label,
+            probability: data.classification.confidence,
+          },
+        ],
+      };
+
+      setResult(classification);
+      setApiStatus("ready");
+
+      setHistory((prev) => [
+        {
+          ...classification,
+          id: `hist-${Date.now()}`,
+          imageUrl: imgEl.src,
+          timestamp: new Date().toISOString(),
+        },
+        ...prev.slice(0, 19),
+      ]);
+    } catch (err) {
+      console.error("Classification error:", err);
+      const msg =
+        err instanceof Error ? err.message : "Classification failed.";
+
+      // Friendly message for missing API key
+      if (msg.includes("GEMINI_API_KEY")) {
+        setError(
+          "Gemini API key not configured. Add GEMINI_API_KEY to your .env.local file."
+        );
+      } else {
+        setError(`${msg} — Try a clearer, well-lit photo.`);
+      }
+      setApiStatus("error");
+    } finally {
+      setClassifying(false);
+    }
+  }, []);
 
   const handleImageLoad = () => {
     if (imgRef.current) runClassification(imgRef.current);
@@ -545,7 +496,7 @@ export default function WasteClassifier() {
       setResult(null);
     } catch {
       setError(
-        "Camera access denied. Please allow camera permissions and try again.",
+        "Camera access denied. Please allow camera permissions and try again."
       );
     }
   };
@@ -573,40 +524,8 @@ export default function WasteClassifier() {
     setResult(null);
     setError(null);
     stopCamera();
+    if (apiStatus === "error") setApiStatus("ready");
   };
-
-  // ── Model status badge config ──────────────────────────────────────────────
-  const STATUS_CONFIG: Record<
-    ModelStatus,
-    { label: string; dot: string; bg: string; text: string }
-  > = {
-    idle: {
-      label: "Not loaded",
-      dot: "bg-gray-400",
-      bg: "bg-gray-100 dark:bg-gray-700",
-      text: "text-gray-600 dark:text-gray-300",
-    },
-    loading: {
-      label: "Loading AI model…",
-      dot: "bg-yellow-400 animate-pulse",
-      bg: "bg-yellow-50 dark:bg-yellow-900/20",
-      text: "text-yellow-700 dark:text-yellow-300",
-    },
-    ready: {
-      label: "AI Model Ready",
-      dot: "bg-green-500",
-      bg: "bg-green-50 dark:bg-green-900/20",
-      text: "text-green-700 dark:text-green-300",
-    },
-    error: {
-      label: "Model failed",
-      dot: "bg-red-500",
-      bg: "bg-red-50 dark:bg-red-900/20",
-      text: "text-red-700 dark:text-red-300",
-    },
-  };
-
-  const statusCfg = STATUS_CONFIG[modelStatus];
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -616,6 +535,7 @@ export default function WasteClassifier() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -628,36 +548,44 @@ export default function WasteClassifier() {
             AI Waste Classifier
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md">
-            Upload or capture an image of a waste item. The on-device MobileNet
-            model instantly classifies it and highlights the correct bin
-            partition.
+            Upload or capture a photo of any waste item. Gemini AI instantly
+            identifies it and tells you which bin to use.
           </p>
         </div>
 
-        {/* Model status pill */}
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${statusCfg.bg} ${statusCfg.text}`}
-        >
-          <span
-            className={`w-2 h-2 rounded-full flex-shrink-0 ${statusCfg.dot}`}
-          />
-          {statusCfg.label}
-          {modelStatus === "error" && (
-            <button onClick={() => loadModel()} className="ml-1 underline">
-              Retry
-            </button>
-          )}
+        {/* Gemini status pill */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300">
+          <Sparkles className="w-3.5 h-3.5" />
+          Powered by Gemini Vision
         </div>
       </div>
 
       {/* ── Error banner ── */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
+        <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold mb-0.5">Classification Error</p>
+            <p className="text-xs">{error}</p>
+            {error.includes("GEMINI_API_KEY") && (
+              <p className="text-xs mt-2 bg-red-100 dark:bg-red-900/40 rounded p-2 font-mono">
+                Add to .env.local: GEMINI_API_KEY=your_key_here
+                <br />
+                Get a free key at:{" "}
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  aistudio.google.com
+                </a>
+              </p>
+            )}
+          </div>
           <button
             onClick={() => setError(null)}
-            className="ml-auto p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-800/40 transition-colors"
+            className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-800/40 transition-colors flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -682,7 +610,6 @@ export default function WasteClassifier() {
                 />
                 {/* Viewfinder overlay */}
                 <div className="absolute inset-0 pointer-events-none">
-                  {/* corner brackets */}
                   {[
                     "top-3 left-3 border-t-2 border-l-2",
                     "top-3 right-3 border-t-2 border-r-2",
@@ -714,13 +641,13 @@ export default function WasteClassifier() {
                   crossOrigin="anonymous"
                 />
                 {classifying && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/55 backdrop-blur-[2px]">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-[2px]">
                     <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
                     <p className="text-white text-sm font-semibold">
-                      Analysing with AI…
+                      Analysing with Gemini AI…
                     </p>
                     <p className="text-white/60 text-xs">
-                      Running MobileNet v2
+                      Identifying waste type and recyclability
                     </p>
                   </div>
                 )}
@@ -750,7 +677,7 @@ export default function WasteClassifier() {
                   or use the camera button below
                 </p>
                 <p className="text-xs text-gray-300 dark:text-gray-600 mt-3">
-                  Supported: JPG, PNG, WEBP, GIF
+                  Supported: JPG, PNG, WEBP — works with any real photo
                 </p>
               </div>
             )}
@@ -761,7 +688,7 @@ export default function WasteClassifier() {
                 <>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={classifying || modelStatus === "loading"}
+                    disabled={classifying}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     <Upload className="w-4 h-4" />
@@ -769,7 +696,7 @@ export default function WasteClassifier() {
                   </button>
                   <button
                     onClick={startCamera}
-                    disabled={classifying || modelStatus === "loading"}
+                    disabled={classifying}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     <Camera className="w-4 h-4" />
@@ -806,15 +733,14 @@ export default function WasteClassifier() {
             </div>
           </div>
 
-          {/* Model loading indicator */}
-          {modelStatus === "loading" && (
-            <div className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl text-sm text-yellow-700 dark:text-yellow-300">
-              <div className="w-4 h-4 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin flex-shrink-0" />
+          {/* Classifying indicator */}
+          {classifying && !imageUrl && (
+            <div className="flex items-center gap-3 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl text-sm text-indigo-700 dark:text-indigo-300">
+              <div className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin flex-shrink-0" />
               <div>
-                <p className="font-semibold">Loading MobileNet v2 model…</p>
-                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">
-                  First load downloads ~16 MB. Subsequent loads use the browser
-                  cache.
+                <p className="font-semibold">Gemini AI is analysing…</p>
+                <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-0.5">
+                  This usually takes 2–4 seconds
                 </p>
               </div>
             </div>
@@ -825,29 +751,29 @@ export default function WasteClassifier() {
             <ResultCard result={result} onClear={() => setResult(null)} />
           )}
 
-          {/* How it works info card */}
-          {!result && !classifying && modelStatus === "ready" && (
+          {/* How it works info card — shown when idle */}
+          {!result && !classifying && !error && (
             <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4">
               <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-2 flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5" />
-                How it works
+                <Sparkles className="w-3.5 h-3.5" />
+                Powered by Gemini Vision AI
               </p>
               <ul className="text-xs text-indigo-600 dark:text-indigo-400 space-y-1 leading-relaxed">
                 <li>
-                  • MobileNet v2 runs <strong>entirely in your browser</strong>{" "}
-                  — no data is sent to any server.
+                  • Works with <strong>any real-world photo</strong> — crumpled,
+                  dirty, partially visible waste items.
                 </li>
                 <li>
-                  • The model identifies over 1 000 object classes and maps them
-                  to waste categories.
+                  • Understands Indian waste items like chai cups, plastic
+                  covers, newspaper bundles.
                 </li>
                 <li>
-                  • The highlighted bin shows which <strong>partition</strong>{" "}
-                  of the smart dustbin to use.
+                  • Gives a specific <strong>disposal tip</strong> for each item
+                  detected.
                 </li>
                 <li>
-                  • For best results, ensure the item is well-lit and centred in
-                  the frame.
+                  • The highlighted bin shows which{" "}
+                  <strong>partition</strong> of the smart dustbin to use.
                 </li>
               </ul>
             </div>
@@ -959,8 +885,7 @@ export default function WasteClassifier() {
             </button>
           </div>
 
-          {/* Scrollable chip row */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2">
             {history.map((entry) => {
               const isRec = entry.category === "recyclable";
               const isUnk = entry.category === "unknown";

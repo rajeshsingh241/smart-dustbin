@@ -14,6 +14,9 @@ import {
   Plus,
   Cpu,
   Truck,
+  Wifi,
+  WifiOff,
+  Radio,
 } from "lucide-react";
 // Comment out Firebase imports - TEMPORARILY DISABLED
 import { listenToDustbinUpdates, createAlert, getAlerts } from "@/lib/firebase";
@@ -32,6 +35,16 @@ export default function DashboardContent() {
   >("dashboard");
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // ── NodeMCU live sensor state ──────────────────────────────────────────────
+  const [nodeConnected, setNodeConnected] = useState(false);
+  const [liveBins, setLiveBins] = useState<Record<string, number>>({});
+  const [lastSensorTime, setLastSensorTime] = useState<string | null>(null);
+  const [nodeMCUData, setNodeMCUData] = useState<{
+    fillLevel: number;
+    distance: number;
+    status: string;
+  } | null>(null);
 
   useEffect(() => {
     // Debug: Check initial state
@@ -155,11 +168,14 @@ export default function DashboardContent() {
     return () => {};
   }, []);
 
-  // Simulate real-time updates with mock data
+  // Simulate real-time updates with mock data (only for bins WITHOUT live sensor)
   useEffect(() => {
     const interval = setInterval(() => {
       setDustbins((prev) =>
         prev.map((bin) => {
+          // Skip simulation for bins that have real NodeMCU data
+          if (liveBins[bin.id] !== undefined) return bin;
+
           const change = Math.random() > 0.5 ? 1 : -1;
           const newLevel = Math.max(0, Math.min(100, bin.fillLevel + change));
           const newStatus =
@@ -176,6 +192,117 @@ export default function DashboardContent() {
     }, 5000);
 
     return () => clearInterval(interval);
+  }, [liveBins]);
+
+  // ── Poll /api/sensor every 3 s for NodeMCU push data ─────────────────────
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/sensor");
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.success && data.count > 0) {
+          setNodeConnected(true);
+          setLastSensorTime(new Date().toISOString());
+
+          const levels: Record<string, number> = {};
+          Object.values(data.sensors as Record<string, {
+            dustbinId: string;
+            fillLevel: number;
+            status: string;
+          }>).forEach((s) => {
+            levels[s.dustbinId] = s.fillLevel;
+          });
+          setLiveBins(levels);
+
+          setDustbins((prev) =>
+            prev.map((bin) => {
+              if (levels[bin.id] !== undefined) {
+                const fl = levels[bin.id];
+                return {
+                  ...bin,
+                  fillLevel: fl,
+                  status:
+                    fl >= 80 ? "critical" : fl >= 50 ? "warning" : "normal",
+                  lastUpdated: new Date().toISOString(),
+                };
+              }
+              return bin;
+            })
+          );
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Poll /api/nodemcu every 3 s — NodeMCU AP mode at 192.168.4.1 ─────────
+  useEffect(() => {
+    const pollNodeMCU = async () => {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2500);
+        const res = await fetch("/api/nodemcu", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const data = await res.json();
+
+        if (data.success && data.data) {
+          const { fillLevel, distance, status } = data.data;
+
+          setNodeMCUData({ fillLevel, distance, status });
+          setNodeConnected(true);
+          setLastSensorTime(new Date().toISOString());
+
+          // Update BIN001 with real NodeMCU data
+          const levels: Record<string, number> = { BIN001: fillLevel };
+          setLiveBins(levels);
+
+          setDustbins((prev) =>
+            prev.map((bin) => {
+              if (bin.id === "BIN001") {
+                return {
+                  ...bin,
+                  fillLevel,
+                  status:
+                    fillLevel >= 80
+                      ? "critical"
+                      : fillLevel >= 50
+                      ? "warning"
+                      : "normal",
+                  lastUpdated: new Date().toISOString(),
+                };
+              }
+              return bin;
+            })
+          );
+        } else {
+          // NodeMCU not reachable — don't override if push sensor already connected
+          if (!Object.keys(liveBins).length) {
+            setNodeConnected(false);
+            setNodeMCUData(null);
+          }
+        }
+      } catch {
+        if (!Object.keys(liveBins).length) {
+          setNodeConnected(false);
+          setNodeMCUData(null);
+        }
+      }
+    };
+
+    pollNodeMCU();
+    const interval = setInterval(pollNodeMCU, 3000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAlerts = async () => {
@@ -348,7 +475,7 @@ export default function DashboardContent() {
         </div>
 
         {/* Development Notice */}
-        <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             <p className="text-amber-800 dark:text-amber-300">
@@ -356,6 +483,120 @@ export default function DashboardContent() {
               disabled. Using mock data for demonstration.
             </p>
           </div>
+        </div>
+
+        {/* NodeMCU Connection Status */}
+        <div
+          className={`mb-6 rounded-lg border ${
+            nodeConnected
+              ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+              : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+          }`}
+        >
+          {/* Top row — connection status */}
+          <div className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              {nodeConnected ? (
+                <Wifi className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              ) : (
+                <WifiOff className="w-5 h-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              )}
+              <div>
+                <p
+                  className={`font-semibold text-sm ${
+                    nodeConnected
+                      ? "text-green-800 dark:text-green-300"
+                      : "text-gray-600 dark:text-gray-400"
+                  }`}
+                >
+                  {nodeConnected
+                    ? "NodeMCU Sensor Connected — Live Data Active"
+                    : "NodeMCU Sensor Not Connected — Showing Simulated Data"}
+                </p>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    nodeConnected
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-gray-400 dark:text-gray-500"
+                  }`}
+                >
+                  {nodeConnected && lastSensorTime
+                    ? `Last reading: ${new Date(lastSensorTime).toLocaleTimeString()} · Connect your laptop to "SMART-DUSTBIN" WiFi`
+                    : 'Connect your laptop to the NodeMCU WiFi "SMART-DUSTBIN" to see live data'}
+                </p>
+              </div>
+            </div>
+            {nodeConnected && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-green-100 dark:bg-green-900/40 rounded-full">
+                <Radio className="w-3.5 h-3.5 text-green-600 dark:text-green-400 animate-pulse" />
+                <span className="text-xs font-bold text-green-700 dark:text-green-300">
+                  LIVE
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Live sensor readings row — shown when NodeMCU is connected */}
+          {nodeConnected && nodeMCUData && (
+            <div className="grid grid-cols-3 gap-0 border-t dark:border-green-800/50">
+              <div className="flex flex-col items-center justify-center py-3 px-4 border-r dark:border-green-800/50">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Distance
+                </p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {nodeMCUData.distance.toFixed(1)}{" "}
+                  <span className="text-sm font-normal">cm</span>
+                </p>
+              </div>
+              <div className="flex flex-col items-center justify-center py-3 px-4 border-r dark:border-green-800/50">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Fill Level
+                </p>
+                <p
+                  className={`text-lg font-bold ${
+                    nodeMCUData.fillLevel >= 80
+                      ? "text-red-600 dark:text-red-400"
+                      : nodeMCUData.fillLevel >= 50
+                      ? "text-yellow-600 dark:text-yellow-400"
+                      : "text-green-600 dark:text-green-400"
+                  }`}
+                >
+                  {nodeMCUData.fillLevel}
+                  <span className="text-sm font-normal">%</span>
+                </p>
+              </div>
+              <div className="flex flex-col items-center justify-center py-3 px-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Status
+                </p>
+                <span
+                  className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    nodeMCUData.fillLevel >= 80
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                      : nodeMCUData.fillLevel >= 50
+                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+                      : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                  }`}
+                >
+                  {nodeMCUData.fillLevel >= 80
+                    ? "CRITICAL"
+                    : nodeMCUData.fillLevel >= 50
+                    ? "WARNING"
+                    : "NORMAL"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Instructions when not connected */}
+          {!nodeConnected && (
+            <div className="px-4 pb-3 pt-0">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                👉 On your laptop: Go to <strong>WiFi settings</strong> → Connect to{" "}
+                <strong>"SMART-DUSTBIN"</strong> → then refresh this page
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -444,10 +685,24 @@ export default function DashboardContent() {
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border dark:border-gray-700 hover:shadow-md dark:hover:shadow-gray-800/50 transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
                       Avg Fill Level
+                      {nodeConnected && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded text-xs font-bold">
+                          <Radio className="w-2.5 h-2.5 animate-pulse" />
+                          LIVE
+                        </span>
+                      )}
                     </p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                    <p
+                      className={`text-3xl font-bold mt-2 ${
+                        avgFillLevel >= 80
+                          ? "text-red-600 dark:text-red-400"
+                          : avgFillLevel >= 50
+                          ? "text-yellow-600 dark:text-yellow-400"
+                          : "text-gray-900 dark:text-white"
+                      }`}
+                    >
                       {avgFillLevel}%
                     </p>
                   </div>
@@ -482,7 +737,9 @@ export default function DashboardContent() {
                     Live Dustbin Status
                   </h2>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    (Simulated updates every 5s)
+                    {nodeConnected
+                      ? "🟢 NodeMCU live · simulated for other bins"
+                      : "Simulated updates every 5s"}
                   </span>
                 </div>
               </div>
@@ -520,11 +777,17 @@ export default function DashboardContent() {
                         className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <Trash2 className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-2" />
+                          <div className="flex items-center gap-2">
+                            <Trash2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                             <span className="text-sm font-medium text-gray-900 dark:text-white">
                               {bin.id}
                             </span>
+                            {liveBins[bin.id] !== undefined && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded text-xs font-bold">
+                                <Radio className="w-2.5 h-2.5 animate-pulse" />
+                                LIVE
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
