@@ -13,6 +13,15 @@ interface NodeMCUData {
   distance: number;
   status: string;
   timestamp: string;
+  ir: string;
+  moisture: number;
+  gas: number;
+  pi1: string;
+  pi2: string;
+  ultrasonic1: number;
+  ultrasonic2: number;
+  ultrasonic3: number;
+  ultrasonic4: number;
 }
 
 /**
@@ -33,37 +42,40 @@ function deriveStatus(fill: number): string {
   return 'normal';
 }
 
-/**
- * Extract distance in cm from HTML or JSON response.
- * Tries several patterns to be robust across different NodeMCU sketches.
- */
-function parseDistance(text: string): number | null {
-  // JSON: { "distance": 12.3 } or { "dist": 12.3 }
-  try {
-    const json = JSON.parse(text);
-    const d = json.distance ?? json.dist ?? json.Distance ?? null;
-    if (typeof d === 'number' && d > 0) return d;
-  } catch {
-    // not JSON — continue to HTML parsing
-  }
+function parseDashboardData(text: string) {
+  const data: any = {};
+  
+  // Remove HTML tags for easier parsing if they exist, but keeping them mostly intact is fine.
+  // The regex will look for "Label: Value"
+  
+  const irMatch = text.match(/IR:\s*(.+?)(?:<|\n|\r|$)/i);
+  data.ir = irMatch ? irMatch[1].trim() : 'Unknown';
+  
+  const moistureMatch = text.match(/Moisture:\s*(\d+)/i);
+  data.moisture = moistureMatch ? parseInt(moistureMatch[1], 10) : 0;
+  
+  const gasMatch = text.match(/Gas:\s*(\d+)/i);
+  data.gas = gasMatch ? parseInt(gasMatch[1], 10) : 0;
+  
+  const pi1Match = text.match(/PI1:\s*(LOW|HIGH)/i);
+  data.pi1 = pi1Match ? pi1Match[1].trim() : 'Unknown';
 
-  // HTML patterns (order matters — most specific first)
-  const patterns = [
-    // "Distance</p><p>12.34 cm"  or  "Distance: 12.34 cm"
-    /distance[^0-9]{0,30}(\d+\.?\d*)\s*cm/i,
-    // bare "12.34 cm" anywhere
-    /(\d+\.?\d*)\s*cm/i,
-  ];
-
-  for (const re of patterns) {
-    const m = text.match(re);
-    if (m) {
-      const val = parseFloat(m[1]);
-      if (val > 0 && val <= 500) return val; // sanity range
-    }
-  }
-
-  return null;
+  const pi2Match = text.match(/PI2:\s*(LOW|HIGH)/i);
+  data.pi2 = pi2Match ? pi2Match[1].trim() : 'Unknown';
+  
+  const u1Match = text.match(/Ultrasonic 1:\s*(\d+\.?\d*)\s*cm/i);
+  data.ultrasonic1 = u1Match ? parseFloat(u1Match[1]) : 0;
+  
+  const u2Match = text.match(/Ultrasonic 2:\s*(\d+\.?\d*)\s*cm/i);
+  data.ultrasonic2 = u2Match ? parseFloat(u2Match[1]) : 0;
+  
+  const u3Match = text.match(/Ultrasonic 3:\s*(\d+\.?\d*)\s*cm/i);
+  data.ultrasonic3 = u3Match ? parseFloat(u3Match[1]) : 0;
+  
+  const u4Match = text.match(/Ultrasonic 4:\s*(\d+\.?\d*)\s*cm/i);
+  data.ultrasonic4 = u4Match ? parseFloat(u4Match[1]) : 0;
+  
+  return data;
 }
 
 export async function GET() {
@@ -106,26 +118,18 @@ export async function GET() {
       );
     }
 
-    // ── Extract distance ────────────────────────────────────────────────────
-    const distance = parseDistance(body);
-
-    if (distance === null) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'NodeMCU responded but distance could not be parsed. Check the NodeMCU sketch output.',
-          raw: body.slice(0, 400),
-        },
-        { status: 422 }
-      );
-    }
-
+    // ── Extract Data ────────────────────────────────────────────────────
+    const dashboardData = parseDashboardData(body);
+    
+    // Use ultrasonic1 as the main distance for the primary bin status
+    const distance = dashboardData.ultrasonic1;
+    
     // ── Calculate fill level from distance (reliable) ───────────────────────
     const fillLevel = calcFill(distance);
     const status = deriveStatus(fillLevel);
 
     const result: NodeMCUData = {
+      ...dashboardData,
       fillLevel,
       distance,
       status,

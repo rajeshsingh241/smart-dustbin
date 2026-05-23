@@ -40,11 +40,7 @@ export default function DashboardContent() {
   const [nodeConnected, setNodeConnected] = useState(false);
   const [liveBins, setLiveBins] = useState<Record<string, number>>({});
   const [lastSensorTime, setLastSensorTime] = useState<string | null>(null);
-  const [nodeMCUData, setNodeMCUData] = useState<{
-    fillLevel: number;
-    distance: number;
-    status: string;
-  } | null>(null);
+  const [nodeMCUData, setNodeMCUData] = useState<any | null>(null);
 
   useEffect(() => {
     // Debug: Check initial state
@@ -242,12 +238,12 @@ export default function DashboardContent() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Poll /api/nodemcu every 3 s — NodeMCU AP mode at 192.168.4.1 ─────────
+  // ── Poll /api/nodemcu every 5 s — NodeMCU AP mode at 192.168.4.1 ─────────
   useEffect(() => {
     const pollNodeMCU = async () => {
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 2500);
+        const timer = setTimeout(() => controller.abort(), 4000);
         const res = await fetch("/api/nodemcu", {
           cache: "no-store",
           signal: controller.signal,
@@ -258,7 +254,7 @@ export default function DashboardContent() {
         if (data.success && data.data) {
           const { fillLevel, distance, status } = data.data;
 
-          setNodeMCUData({ fillLevel, distance, status });
+          setNodeMCUData(data.data);
           setNodeConnected(true);
           setLastSensorTime(new Date().toISOString());
 
@@ -285,22 +281,18 @@ export default function DashboardContent() {
             })
           );
         } else {
-          // NodeMCU not reachable — don't override if push sensor already connected
-          if (!Object.keys(liveBins).length) {
-            setNodeConnected(false);
-            setNodeMCUData(null);
-          }
+          // NodeMCU might have dropped a ping.
+          // We INTENTIONALLY do not hide the dashboard (setNodeMCUData(null))
+          // so the user does not see it flashing on and off if the WiFi is weak.
         }
       } catch {
-        if (!Object.keys(liveBins).length) {
-          setNodeConnected(false);
-          setNodeMCUData(null);
-        }
+        // Fetch failed. We INTENTIONALLY do not hide the dashboard.
+        // It will just keep showing the last known good value.
       }
     };
 
     pollNodeMCU();
-    const interval = setInterval(pollNodeMCU, 3000);
+    const interval = setInterval(pollNodeMCU, 5000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -538,52 +530,63 @@ export default function DashboardContent() {
 
           {/* Live sensor readings row — shown when NodeMCU is connected */}
           {nodeConnected && nodeMCUData && (
-            <div className="grid grid-cols-3 gap-0 border-t dark:border-green-800/50">
-              <div className="flex flex-col items-center justify-center py-3 px-4 border-r dark:border-green-800/50">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  Distance
-                </p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  {nodeMCUData.distance.toFixed(1)}{" "}
-                  <span className="text-sm font-normal">cm</span>
-                </p>
+            <div className="flex flex-col border-t dark:border-green-800/50">
+              <div className="grid grid-cols-3 gap-0 border-b dark:border-green-800/50">
+                <div className="flex flex-col items-center justify-center py-3 px-4 border-r dark:border-green-800/50">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Distance</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">
+                    {nodeMCUData.distance?.toFixed(1) || 0} <span className="text-sm font-normal">cm</span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center py-3 px-4 border-r dark:border-green-800/50">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Fill Level</p>
+                  <p className={`text-lg font-bold ${nodeMCUData.fillLevel >= 80 ? "text-red-600 dark:text-red-400" : nodeMCUData.fillLevel >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400"}`}>
+                    {nodeMCUData.fillLevel}<span className="text-sm font-normal">%</span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center py-3 px-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</p>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${nodeMCUData.fillLevel >= 80 ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" : nodeMCUData.fillLevel >= 50 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300" : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"}`}>
+                    {nodeMCUData.fillLevel >= 80 ? "CRITICAL" : nodeMCUData.fillLevel >= 50 ? "WARNING" : "NORMAL"}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col items-center justify-center py-3 px-4 border-r dark:border-green-800/50">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  Fill Level
-                </p>
-                <p
-                  className={`text-lg font-bold ${
-                    nodeMCUData.fillLevel >= 80
-                      ? "text-red-600 dark:text-red-400"
-                      : nodeMCUData.fillLevel >= 50
-                      ? "text-yellow-600 dark:text-yellow-400"
-                      : "text-green-600 dark:text-green-400"
-                  }`}
-                >
-                  {nodeMCUData.fillLevel}
-                  <span className="text-sm font-normal">%</span>
-                </p>
-              </div>
-              <div className="flex flex-col items-center justify-center py-3 px-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  Status
-                </p>
-                <span
-                  className={`text-xs font-bold px-2 py-1 rounded-full ${
-                    nodeMCUData.fillLevel >= 80
-                      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
-                      : nodeMCUData.fillLevel >= 50
-                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
-                      : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                  }`}
-                >
-                  {nodeMCUData.fillLevel >= 80
-                    ? "CRITICAL"
-                    : nodeMCUData.fillLevel >= 50
-                    ? "WARNING"
-                    : "NORMAL"}
-                </span>
+
+              {/* Extended Sensor Data */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50/50 dark:bg-gray-800/30">
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">IR Sensor</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.ir || 'Unknown'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Moisture</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.moisture || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Gas</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.gas || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">PI Status</span>
+                  <span className="font-semibold text-gray-900 dark:text-white text-xs">PI1: {nodeMCUData.pi1 || 'LOW'} | PI2: {nodeMCUData.pi2 || 'LOW'}</span>
+                </div>
+                
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Ultrasonic 1</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.ultrasonic1 || 0} cm</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Ultrasonic 2</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.ultrasonic2 || 0} cm</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Ultrasonic 3</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.ultrasonic3 || 0} cm</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Ultrasonic 4</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{nodeMCUData.ultrasonic4 || 0} cm</span>
+                </div>
               </div>
             </div>
           )}
