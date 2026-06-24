@@ -445,7 +445,7 @@ export default function DashboardContent() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Add Dustbin Button */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Smart Dustbin Dashboard
@@ -459,7 +459,7 @@ export default function DashboardContent() {
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 flex items-center gap-2 transition-colors"
+            className="px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 flex items-center gap-2 transition-colors w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4" />
             Add Dustbin
@@ -603,10 +603,10 @@ export default function DashboardContent() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex overflow-x-auto gap-4 mb-6 pb-2 scrollbar-hide">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === "dashboard"
                 ? "bg-green-600 dark:bg-green-700 text-white"
                 : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -616,7 +616,7 @@ export default function DashboardContent() {
           </button>
           <button
             onClick={() => setActiveTab("alerts")}
-            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === "alerts"
                 ? "bg-green-600 dark:bg-green-700 text-white"
                 : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -627,7 +627,7 @@ export default function DashboardContent() {
           </button>
           <button
             onClick={() => setActiveTab("classifier")}
-            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === "classifier"
                 ? "bg-indigo-600 dark:bg-indigo-700 text-white"
                 : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -638,7 +638,7 @@ export default function DashboardContent() {
           </button>
           <button
             onClick={() => setActiveTab("bus-route")}
-            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === "bus-route"
                 ? "bg-green-700 dark:bg-green-800 text-white"
                 : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
